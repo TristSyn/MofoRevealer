@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mofo Revealer
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Reveal those Black Market mofos
 // @author       You
 // @match        https://vmapp.pages.dev/
@@ -42,6 +42,9 @@
                 }, false);
             }
         } else {
+
+
+
             console.log('startup VM Page');
             console.log('adding iframe.');
             prefillFromCache();
@@ -49,26 +52,17 @@
             iframe.style.display = 'none';
             iframe.src = 'https://vmapp.pages.dev/';
 
-            var titleid = $("title").text().split('#')[1];
-            if(titleid) {
-                titleid = titleid.split(' ')[0];
-                if(window.location.href.includes(titleid)) {
-                    isWinePage = true;
-                    setTimeout(() => {
-                        if(lookups['offerid_'+titleid.trim()]) {
-                            var $h2 = $("h2[class^='Heading__StyledHeading'][class*='OfferHeroCard__StyledHeading']:first");
-                            if($h2)
-                                setWineTitle($h2, lookups['offerid_'+titleid.trim()]);
-                        } else {
-                            //try to get from iframe
-                            NotifyVMApp({"id": titleid.trim(), "anchor": '-' })
-                        }
-                    }, 1000);
+
+            let previousUrl = '';
+            setTimeout(setTitles, 1000);
+            const observer = new MutationObserver(function(mutations) {
+                if (location.href !== previousUrl) {
+                    previousUrl = location.href;
+                    setTimeout(setTitles, 1000);
                 }
-            } else {
-                $("main").on("mouseover", main_mouseover);
-                setTimeout(setTitlesFromCache, 1000);
-            }
+            });
+            const config = {subtree: true, childList: true};
+            observer.observe(document, config);
 
             console.log('adding events.');
             window.addEventListener('message', function(m){
@@ -90,6 +84,28 @@
                     }
                 }
             });
+        }
+    }
+
+    function setTitles() {
+
+        var titleid = $("title").text().split('#')[1];
+        if(titleid) {
+            titleid = titleid.split(' ')[0];
+            if(window.location.href.includes(titleid)) {
+                isWinePage = true;
+                if(lookups['offerid_'+titleid.trim()]) {
+                    var $h2 = $("h2[class^='Heading__StyledHeading'][class*='OfferHeroCard__StyledHeading']:first");
+                    if($h2)
+                        setWineTitle($h2, lookups['offerid_'+titleid.trim()]);
+                } else {
+                    //try to get from iframe
+                    NotifyVMApp({"id": titleid.trim(), "anchor": '-' })
+                }
+            }
+        } else {
+            $("main").on("mouseover", main_mouseover);
+            setTitlesFromCache();
         }
     }
 
@@ -141,7 +157,8 @@
     function setWineTitle($target, originalname) {
         console.log('set wine title:', originalname);
         $target.attr('vm-reveal', 'done');
-        $target.html(originalname + "<br/>-<br/>" + $target.text() + "");
+        $("<br/><i style='font-size:smaller;'>"+$target.text() + "</i>").insertAfter($target);
+        $target.text(originalname);
     }
 
     function NotifyVMApp(msg) {
